@@ -1,0 +1,62 @@
+---
+title: "Practical Machine Learning"
+author: "AS"
+date: "Sunday, December 21, 2014"
+output: html_document
+---
+
+# Practical Machine Learning
+
+The aim of this report is to build prediction model to predict activity quality from activity monitors. It presents the process of cleaning data, the results of random forest model and the evaluation of the presented model.
+
+## Reading and processing the data
+
+```{r, results = "hide", message = F, warning = F}
+library(caret)
+library(randomForest)
+library(ElemStatLearn)
+set.seed(357)
+
+# Read data
+data <- read.csv("pml-training.csv", na.strings=c("NA", ""))
+
+# Create training and testing dataset
+inTrain <- createDataPartition(data$classe, p = 0.7, list = FALSE)
+training <- data[inTrain, ]
+testing <- data[-inTrain, ]
+rm(data)
+
+# Cleaning the data
+# First getting rid of first 6 columns with user related data
+training <- training[, 7:160]
+testing <- testing[, 7:160]
+```
+```{r}
+# Deleting the columns with more than 40% of NAs
+sum((colSums(!is.na(training[,-ncol(training)])) < 0.6 * nrow(training)))
+keep <- c((colSums(!is.na(training[,-ncol(training)])) >= 0.6*nrow(training)))
+training <- training[, keep]
+testing <- testing[, keep]
+```
+
+The original dataset was divided into training and testing datasets (the model was trained on 70% of original data). The first 6 columns of the dataset was omitted, because they represent some user-related data. Additionally all the columns with more than 40% of NAs in training dataset were also deleted.
+
+## Fitting the model
+
+```{r}
+rf_model <- randomForest(classe~., data = training, ntree = 100)
+print(rf_model)
+```
+
+In order to shorten time of model estimation the max number of trees was decreased to 100.  
+Random forests don't require cross-validation, as the method produces unbiased estimates.
+
+## Model evaluation
+
+```{r}
+confusionMatrix(predict(rf_model, newdata = testing[, -ncol(testing)]), testing$classe)
+accuracy <- c(as.numeric(predict(rf_model, newdata = testing[, -ncol(testing)]) == testing$classe))
+accuracy <- sum(accuracy) * 100 / nrow(testing)
+```
+
+The model evaluation is positive. The out-of-sample accuracy  is very high and accounts for `r accuracy`%
